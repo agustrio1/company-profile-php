@@ -15,12 +15,29 @@ Database::connect();
 echo "Seeding roles and permissions...\n";
 
 try {
-    Database::beginTransaction();
+    echo "→ Starting transaction...\n";
+    flush();
+    
+    $transactionStarted = Database::beginTransaction();
+    if (!$transactionStarted) {
+        throw new Exception("Failed to start transaction");
+    }
+    echo "✓ Transaction started\n";
+    flush();
 
     // Generate ULIDs
+    echo "→ Generating ULIDs...\n";
+    flush();
+    
     $superAdminRoleId = strtolower(\Ulid\Ulid::generate());
     $adminRoleId = strtolower(\Ulid\Ulid::generate());
     $editorRoleId = strtolower(\Ulid\Ulid::generate());
+    
+    echo "✓ ULIDs generated\n";
+    echo "  Super Admin: {$superAdminRoleId}\n";
+    echo "  Admin: {$adminRoleId}\n";
+    echo "  Editor: {$editorRoleId}\n";
+    flush();
 
     // Insert Roles
     $roles = [
