@@ -46,9 +46,18 @@ class Database
                 
                 // Build PDO DSN
                 $dsn = sprintf(
-                    "pgsql:host=%s;port=%s;dbname=%s;sslmode=%s;connect_timeout=60",
+                    "pgsql:host=%s;port=%s;dbname=%s;sslmode=%s",
                     $host, $port, $dbname, $sslmode
                 );
+                
+                // Debug output in CLI mode
+                if (php_sapi_name() === 'cli') {
+                    echo "Connecting to database...\n";
+                    echo "Host: {$host}\n";
+                    echo "Port: {$port}\n";
+                    echo "Database: {$dbname}\n";
+                    echo "SSL Mode: {$sslmode}\n\n";
+                }
                 
                 self::$connection = new PDO($dsn, $user, $password, self::$config['options']);
             } else {
@@ -66,6 +75,14 @@ class Database
                     $dsn .= ";sslmode=" . self::$config['sslmode'];
                 }
 
+                // Debug output in CLI mode
+                if (php_sapi_name() === 'cli') {
+                    echo "Connecting to database...\n";
+                    echo "Host: " . self::$config['host'] . "\n";
+                    echo "Port: " . self::$config['port'] . "\n";
+                    echo "Database: " . self::$config['database'] . "\n\n";
+                }
+
                 self::$connection = new PDO(
                     $dsn,
                     self::$config['username'],
@@ -74,8 +91,29 @@ class Database
                 );
             }
 
+            if (php_sapi_name() === 'cli') {
+                echo "✓ Database connected successfully!\n\n";
+            }
+
             return self::$connection;
         } catch (PDOException $e) {
+            // Show detailed error in CLI mode or when debug is enabled
+            if (php_sapi_name() === 'cli' || ($_ENV['APP_DEBUG'] ?? false)) {
+                $errorMsg = "Database connection failed:\n";
+                $errorMsg .= "Error: " . $e->getMessage() . "\n";
+                $errorMsg .= "Code: " . $e->getCode() . "\n";
+                
+                if (!empty($_ENV['DATABASE_URL'])) {
+                    $parsed = parse_url($_ENV['DATABASE_URL']);
+                    $errorMsg .= "\nConnection details:\n";
+                    $errorMsg .= "Host: " . ($parsed['host'] ?? 'unknown') . "\n";
+                    $errorMsg .= "Port: " . ($parsed['port'] ?? '5432') . "\n";
+                    $errorMsg .= "Database: " . ltrim($parsed['path'] ?? '', '/') . "\n";
+                }
+                
+                throw new \RuntimeException($errorMsg);
+            }
+            
             throw new \RuntimeException('Database connection failed');
         }
     }
