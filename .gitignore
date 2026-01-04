@@ -1,0 +1,78 @@
+# Environment Variables
+.env
+.env.local
+.env.*.local
+
+# Composer
+/vendor/
+composer.phar
+composer.lock
+
+# Node Modules (for frontend assets)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Build Assets
+/public/build/
+/public/hot
+
+# Logs
+/storage/logs/*.log
+*.log
+
+# Cache
+/storage/cache/*
+!storage/cache/.gitkeep
+
+# Uploaded Files
+/public/uploads/*
+!public/uploads/.gitkeep
+/public/uploads/blogs/*
+!public/uploads/blogs/.gitkeep
+/public/uploads/services/*
+!public/uploads/services/.gitkeep
+/public/uploads/team/*
+!public/uploads/team/.gitkeep
+
+# IDE & Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# PHP
+*.php~
+*.php.bak
+
+# Database
+*.sql
+*.sqlite
+*.db
+
+# Backup files
+*.bak
+*.backup
+*.tmp
+
+# Session files
+/storage/sessions/*
+!storage/sessions/.gitkeep
+
+# Temporary files
+/tmp/*
+!tmp/.gitkeep
+/temp/*
+!temp/.gitkeep
