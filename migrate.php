@@ -62,20 +62,33 @@ switch ($command) {
 
 function confirmAction($message)
 {
-    // Check if running in non-interactive mode (composer script)
-    if (defined('STDIN') && !stream_isatty(STDIN)) {
-        return false;
+    global $argv;
+    
+    // Check for --force flag
+    $force = in_array('--force', $argv) || in_array('-f', $argv);
+    
+    if ($force) {
+        return true;
     }
     
-    if (!defined('STDIN')) {
+    // Check if running in interactive mode
+    if (!defined('STDIN') || php_sapi_name() !== 'cli') {
+        echo "⚠️ Running in non-interactive mode. Use --force flag to proceed.\n";
         return false;
     }
     
     echo "⚠️  {$message}.\n";
     echo "Are you sure? (yes/no): ";
+    
     $handle = fopen("php://stdin", "r");
+    if ($handle === false) {
+        echo "Cannot read input. Use --force flag.\n";
+        return false;
+    }
+    
     $line = fgets($handle);
     fclose($handle);
+    
     return trim(strtolower($line)) === 'yes';
 }
 
