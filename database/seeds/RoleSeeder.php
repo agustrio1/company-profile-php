@@ -38,6 +38,22 @@ try {
     echo "  Admin: {$adminRoleId}\n";
     echo "  Editor: {$editorRoleId}\n";
     flush();
+    
+    // Check table structure
+    echo "\n→ Checking roles table structure...\n";
+    flush();
+    
+    $tableInfo = Database::query("
+        SELECT column_name, data_type, is_nullable, column_default 
+        FROM information_schema.columns 
+        WHERE table_name = 'roles' 
+        ORDER BY ordinal_position
+    ")->fetchAll();
+    
+    foreach ($tableInfo as $col) {
+        echo "  - {$col->column_name} ({$col->data_type}), nullable: {$col->is_nullable}, default: " . ($col->column_default ?? 'NULL') . "\n";
+    }
+    flush();
 
     // Insert Roles
     $roles = [
