@@ -31,12 +31,21 @@ try {
 
     foreach ($roles as $role) {
         try {
-            Database::query(
+            $result = Database::query(
                 "INSERT INTO roles (id, name, description) VALUES (:id, :name, :description)",
                 $role
             );
-            echo "✓ Role created: {$role['name']}\n";
+            
+            // Verify insert worked
+            $check = Database::fetchOne("SELECT id FROM roles WHERE id = :id", ['id' => $role['id']]);
+            if (!$check) {
+                throw new Exception("Role insert verification failed");
+            }
+            
+            echo "✓ Role created: {$role['name']} (ID: {$role['id']})\n";
         } catch (Exception $e) {
+            // Rollback immediately on first error
+            Database::rollback();
             throw new Exception("Failed to create role '{$role['name']}': " . $e->getMessage());
         }
     }
