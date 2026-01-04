@@ -9,123 +9,116 @@ use Dotenv\Dotenv;
 $dotenv = Dotenv::createImmutable(dirname(__DIR__, 2));
 $dotenv->load();
 
-// Connect to database
-Database::connect();
-
 echo "Seeding users...\n";
 
 try {
-    Database::beginTransaction();
+    // Get fresh PDO connection
+    $pdo = Database::connect();
+    
+    // Start new transaction
+    $pdo->beginTransaction();
 
-    // Get Super Admin Role
-    $superAdminRole = Database::fetchOne("SELECT id FROM roles WHERE name = 'Super Admin'");
+    // Find Super Admin role
+    $stmt = $pdo->prepare("SELECT id FROM roles WHERE name = :name LIMIT 1");
+    $stmt->execute(['name' => 'Super Admin']);
+    $superAdminRole = $stmt->fetch(PDO::FETCH_ASSOC);
     
     if (!$superAdminRole) {
         throw new Exception("Super Admin role not found. Please run RoleSeeder first.");
     }
-    echo "✓ Super Admin role found: {$superAdminRole->id}\n";
+    
+    echo "✓ Super Admin role found: {$superAdminRole['id']}\n\n";
 
-    // Create Super Admin User
-    $userId = strtolower(\Ulid\Ulid::generate());
-    $now = date('Y-m-d H:i:s');
-
-    $user = [
-        'id' => $userId,
-        'name' => 'Super Admin',
-        'email' => 'admin@gmail.com',
-        'password' => password_hash('password123', PASSWORD_BCRYPT),
-        'created_at' => $now,
-        'updated_at' => $now
+    // Create default users
+    echo "→ Creating users...\n";
+    
+    $users = [
+        [
+            'id' => strtolower(\Ulid\Ulid::generate()),
+            'name' => 'Super Admin',
+            'email' => 'superadmin@nexarostudio.com',
+            'password' => password_hash('password123', PASSWORD_BCRYPT),
+            'role_id' => $superAdminRole['id']
+        ],
+        [
+            'id' => strtolower(\Ulid\Ulid::generate()),
+            'name' => 'Admin User',
+            'email' => 'admin@nexarostudio.com',
+            'password' => password_hash('password123', PASSWORD_BCRYPT),
+            'role_id' => null // Will be set to Admin role
+        ],
+        [
+            'id' => strtolower(\Ulid\Ulid::generate()),
+            'name' => 'Editor User',
+            'email' => 'editor@nexarostudio.com',
+            'password' => password_hash('password123', PASSWORD_BCRYPT),
+            'role_id' => null // Will be set to Editor role
+        ]
     ];
 
-    try {
-        Database::query(
-            "INSERT INTO users (id, name, email, password, created_at, updated_at) 
-             VALUES (:id, :name, :email, :password, :created_at, :updated_at)",
-            $user
-        );
-        echo "✓ User created: {$user['email']}\n";
-    } catch (Exception $e) {
-        throw new Exception("Failed to create user: " . $e->getMessage());
-    }
-
-    // Assign Super Admin Role to User
-    try {
-        Database::query(
-            "INSERT INTO role_user (user_id, role_id) VALUES (:user_id, :role_id)",
-            ['user_id' => $userId, 'role_id' => $superAdminRole->id]
-        );
-        echo "✓ Super Admin role assigned\n";
-    } catch (Exception $e) {
-        throw new Exception("Failed to assign role: " . $e->getMessage());
-    }
-
-    // Create Demo Company Profile
-    echo "→ Creating demo company profile...\n";
-    $companyId = strtolower(\Ulid\Ulid::generate());
+    // Get Admin and Editor role IDs
+    $stmt = $pdo->prepare("SELECT id FROM roles WHERE name = :name LIMIT 1");
     
-    $company = [
-        'id' => $companyId,
-        'name' => 'Your Company Name',
-        'slug' => 'your-company-name',
-        'description' => 'Your company description here',
-        'vision' => 'Your company vision here',
-        'mission' => 'Your company mission here',
-        'founded_year' => 2024,
-        'address' => 'Your company address',
-        'phone' => '+1234567890',
-        'email' => 'info@example.com',
-        'website' => 'https://example.com',
-        'created_at' => $now,
-        'updated_at' => $now
-    ];
-
-    try {
-        Database::query(
-            "INSERT INTO company (id, name, slug, description, vision, mission, founded_year, address, phone, email, website, created_at, updated_at) 
-             VALUES (:id, :name, :slug, :description, :vision, :mission, :founded_year, :address, :phone, :email, :website, :created_at, :updated_at)",
-            $company
-        );
-        echo "✓ Demo company profile created\n";
-    } catch (Exception $e) {
-        throw new Exception("Failed to create company: " . $e->getMessage());
+    $stmt->execute(['name' => 'Admin']);
+    $adminRole = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($adminRole) {
+        $users[1]['role_id'] = $adminRole['id'];
     }
-
-    // Create Demo Blog Category
-    echo "→ Creating demo blog category...\n";
-    $categoryId = strtolower(\Ulid\Ulid::generate());
     
-    try {
-        Database::query(
-            "INSERT INTO blog_categories (id, name, slug, description) 
-             VALUES (:id, :name, :slug, :description)",
-            [
-                'id' => $categoryId,
-                'name' => 'General',
-                'slug' => 'general',
-                'description' => 'General blog posts'
-            ]
-        );
-        echo "✓ Demo blog category created\n";
-    } catch (Exception $e) {
-        throw new Exception("Failed to create category: " . $e->getMessage());
+    $stmt->execute(['name' => 'Editor']);
+    $editorRole = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($editorRole) {
+        $users[2]['role_id'] = $editorRole['id'];
     }
 
-    Database::commit();
-    echo "\n✅ Users and demo data seeded successfully!\n\n";
-    echo "===========================================\n";
-    echo "  LOGIN CREDENTIALS\n";
-    echo "===========================================\n";
-    echo "Email:    admin@gmail.com\n";
-    echo "Password: password123\n";
-    echo "===========================================\n\n";
-    echo "⚠️  Please change the password after first login!\n\n";
+    // Insert users
+    $userStmt = $pdo->prepare(
+        "INSERT INTO users (id, name, email, password, created_at, updated_at) 
+         VALUES (:id, :name, :email, :password, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+    );
+
+    // Assign roles to users
+    $roleUserStmt = $pdo->prepare(
+        "INSERT INTO role_user (user_id, role_id) VALUES (:user_id, :role_id)"
+    );
+
+    foreach ($users as $user) {
+        // Insert user
+        $userStmt->execute([
+            'id' => $user['id'],
+            'name' => $user['name'],
+            'email' => $user['email'],
+            'password' => $user['password']
+        ]);
+        
+        echo "  ✓ User created: {$user['name']} ({$user['email']})\n";
+
+        // Assign role if exists
+        if ($user['role_id']) {
+            $roleUserStmt->execute([
+                'user_id' => $user['id'],
+                'role_id' => $user['role_id']
+            ]);
+            echo "    → Role assigned\n";
+        }
+    }
+
+    // Commit transaction
+    $pdo->commit();
+    
+    echo "\n✅ Users seeded successfully!\n";
+    echo "\nDefault Credentials:\n";
+    echo "-------------------\n";
+    echo "Super Admin: superadmin@nexarostudio.com / password123\n";
+    echo "Admin:       admin@nexarostudio.com / password123\n";
+    echo "Editor:      editor@nexarostudio.com / password123\n";
 
 } catch (Exception $e) {
-    // Only rollback if transaction is still active
-    if (Database::connect()->inTransaction()) {
-        Database::rollback();
+    if (isset($pdo) && $pdo->inTransaction()) {
+        $pdo->rollBack();
+        echo "\n🔄 Transaction rolled back\n";
     }
     echo "\n❌ Error: " . $e->getMessage() . "\n";
+    echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
     exit(1);
 }
