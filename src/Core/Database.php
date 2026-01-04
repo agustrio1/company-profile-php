@@ -218,6 +218,10 @@ class Database
 
     public static function rollback(): bool
     {
-        return self::connect()->rollBack();
+        // Check if transaction is active before rollback
+        if (self::connect()->inTransaction()) {
+            return self::connect()->rollBack();
+        }
+        return false;
     }
 }

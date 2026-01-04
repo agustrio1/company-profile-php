@@ -31,18 +31,17 @@ try {
 
     foreach ($roles as $role) {
         try {
-            $result = Database::query(
+            Database::query(
                 "INSERT INTO roles (id, name, description) VALUES (:id, :name, :description)",
                 $role
-            );
-            
+            );            
             // Verify insert worked
             $check = Database::fetchOne("SELECT id FROM roles WHERE id = :id", ['id' => $role['id']]);
             if (!$check) {
                 throw new Exception("Role insert verification failed");
             }
             
-            echo "✓ Role created: {$role['name']} (ID: {$role['id']})\n";
+            echo "✓ Role created: {$role['name']}\n";
         } catch (Exception $e) {
             // Rollback immediately on first error
             Database::rollback();
@@ -151,7 +150,10 @@ try {
     echo "\n✅ Roles and permissions seeded successfully!\n";
 
 } catch (Exception $e) {
-    Database::rollback();
+    // Only rollback if transaction is still active
+    if (Database::connect()->inTransaction()) {
+        Database::rollback();
+    }
     echo "\n❌ Error: " . $e->getMessage() . "\n";
     exit(1);
 }

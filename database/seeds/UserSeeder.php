@@ -122,7 +122,10 @@ try {
     echo "⚠️  Please change the password after first login!\n\n";
 
 } catch (Exception $e) {
-    Database::rollback();
+    // Only rollback if transaction is still active
+    if (Database::connect()->inTransaction()) {
+        Database::rollback();
+    }
     echo "\n❌ Error: " . $e->getMessage() . "\n";
     exit(1);
 }

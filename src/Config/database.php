@@ -17,6 +17,7 @@ return [
         PDO::ATTR_EMULATE_PREPARES => false,
         PDO::ATTR_TIMEOUT => 30,
         PDO::ATTR_PERSISTENT => false,
+        PDO::ATTR_AUTOCOMMIT => false,
     ],
     'connect_timeout' => 60,
 ];
