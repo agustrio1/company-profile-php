@@ -30,11 +30,15 @@ try {
     ];
 
     foreach ($roles as $role) {
-        Database::execute(
-            "INSERT INTO roles (id, name, description) VALUES (:id, :name, :description)",
-            $role
-        );
-        echo "✓ Role created: {$role['name']}\n";
+        try {
+            Database::query(
+                "INSERT INTO roles (id, name, description) VALUES (:id, :name, :description)",
+                $role
+            );
+            echo "✓ Role created: {$role['name']}\n";
+        } catch (Exception $e) {
+            throw new Exception("Failed to create role '{$role['name']}': " . $e->getMessage());
+        }
     }
 
     // Insert Permissions
@@ -69,57 +73,76 @@ try {
 
     $permissionIds = [];
     foreach ($permissions as $permission) {
-        $id = strtolower(\Ulid\Ulid::generate());
-        $permissionIds[$permission['name']] = $id;
-        
-        Database::execute(
-            "INSERT INTO permissions (id, name, description) VALUES (:id, :name, :description)",
-            ['id' => $id, 'name' => $permission['name'], 'description' => $permission['description']]
-        );
-        echo "✓ Permission created: {$permission['name']}\n";
+        try {
+            $id = strtolower(\Ulid\Ulid::generate());
+            $permissionIds[$permission['name']] = $id;
+            
+            Database::query(
+                "INSERT INTO permissions (id, name, description) VALUES (:id, :name, :description)",
+                ['id' => $id, 'name' => $permission['name'], 'description' => $permission['description']]
+            );
+            echo "✓ Permission created: {$permission['name']}\n";
+        } catch (Exception $e) {
+            throw new Exception("Failed to create permission '{$permission['name']}': " . $e->getMessage());
+        }
     }
 
     // Assign all permissions to Super Admin
-    foreach ($permissionIds as $permissionId) {
-        Database::execute(
-            "INSERT INTO permission_role (role_id, permission_id) VALUES (:role_id, :permission_id)",
-            ['role_id' => $superAdminRoleId, 'permission_id' => $permissionId]
-        );
+    echo "→ Assigning permissions to Super Admin...\n";
+    foreach ($permissionIds as $permName => $permissionId) {
+        try {
+            Database::query(
+                "INSERT INTO permission_role (role_id, permission_id) VALUES (:role_id, :permission_id)",
+                ['role_id' => $superAdminRoleId, 'permission_id' => $permissionId]
+            );
+        } catch (Exception $e) {
+            throw new Exception("Failed to assign permission '{$permName}' to Super Admin: " . $e->getMessage());
+        }
     }
     echo "✓ All permissions assigned to Super Admin\n";
 
     // Assign selected permissions to Admin
+    echo "→ Assigning permissions to Admin...\n";
     $adminPermissions = [
         'view_users', 'manage_blogs', 'publish_blogs', 'view_blogs',
         'manage_blog_categories', 'manage_services', 'view_services',
         'manage_teams', 'view_teams', 'manage_company'
     ];
     foreach ($adminPermissions as $permName) {
-        Database::execute(
-            "INSERT INTO permission_role (role_id, permission_id) VALUES (:role_id, :permission_id)",
-            ['role_id' => $adminRoleId, 'permission_id' => $permissionIds[$permName]]
-        );
+        try {
+            Database::query(
+                "INSERT INTO permission_role (role_id, permission_id) VALUES (:role_id, :permission_id)",
+                ['role_id' => $adminRoleId, 'permission_id' => $permissionIds[$permName]]
+            );
+        } catch (Exception $e) {
+            throw new Exception("Failed to assign permission '{$permName}' to Admin: " . $e->getMessage());
+        }
     }
     echo "✓ Selected permissions assigned to Admin\n";
 
     // Assign selected permissions to Editor
+    echo "→ Assigning permissions to Editor...\n";
     $editorPermissions = [
         'manage_blogs', 'view_blogs', 'manage_blog_categories',
         'manage_services', 'view_services'
     ];
     foreach ($editorPermissions as $permName) {
-        Database::execute(
-            "INSERT INTO permission_role (role_id, permission_id) VALUES (:role_id, :permission_id)",
-            ['role_id' => $editorRoleId, 'permission_id' => $permissionIds[$permName]]
-        );
+        try {
+            Database::query(
+                "INSERT INTO permission_role (role_id, permission_id) VALUES (:role_id, :permission_id)",
+                ['role_id' => $editorRoleId, 'permission_id' => $permissionIds[$permName]]
+            );
+        } catch (Exception $e) {
+            throw new Exception("Failed to assign permission '{$permName}' to Editor: " . $e->getMessage());
+        }
     }
     echo "✓ Selected permissions assigned to Editor\n";
 
     Database::commit();
-    echo "\n Roles and permissions seeded successfully!\n";
+    echo "\n✅ Roles and permissions seeded successfully!\n";
 
 } catch (Exception $e) {
     Database::rollback();
-    echo "\n Error: " . $e->getMessage() . "\n";
+    echo "\n❌ Error: " . $e->getMessage() . "\n";
     exit(1);
 }
