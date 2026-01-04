@@ -62,6 +62,10 @@ Desktop.ini
 *.sqlite
 *.db
 
+# EXCEPT migrations (these should be committed)
+!database/migrations/*.sql
+!database/seeds/*.sql
+
 # Backup files
 *.bak
 *.backup
@@ -76,3 +80,4 @@ Desktop.ini
 !tmp/.gitkeep
 /temp/*
 !temp/.gitkeep
+.vercel

@@ -17,6 +17,7 @@ echo "  Database Migration Tool\n";
 echo "===========================================\n\n";
 
 $command = $argv[1] ?? 'migrate';
+$force = in_array('--force', $argv) || in_array('-f', $argv);
 
 switch ($command) {
     case 'migrate':
@@ -24,13 +25,9 @@ switch ($command) {
         break;
     
     case 'fresh':
-        echo "⚠️  This will DROP all tables and re-run migrations.\n";
-        echo "Are you sure? (yes/no): ";
-        $handle = fopen("php://stdin", "r");
-        $line = fgets($handle);
-        if (trim($line) !== 'yes') {
+        if (!$force && !confirmAction('This will DROP all tables and re-run migrations')) {
             echo "Migration cancelled.\n";
-            exit;
+            exit(0);
         }
         dropAllTables();
         runMigrations();
@@ -41,13 +38,9 @@ switch ($command) {
         break;
     
     case 'fresh-seed':
-        echo "⚠️  This will DROP all tables, re-run migrations, and seed data.\n";
-        echo "Are you sure? (yes/no): ";
-        $handle = fopen("php://stdin", "r");
-        $line = fgets($handle);
-        if (trim($line) !== 'yes') {
+        if (!$force && !confirmAction('This will DROP all tables, re-run migrations, and seed data')) {
             echo "Migration cancelled.\n";
-            exit;
+            exit(0);
         }
         dropAllTables();
         runMigrations();
@@ -65,6 +58,25 @@ switch ($command) {
     default:
         showHelp();
         break;
+}
+
+function confirmAction($message)
+{
+    // Check if running in non-interactive mode (composer script)
+    if (defined('STDIN') && !stream_isatty(STDIN)) {
+        return false;
+    }
+    
+    if (!defined('STDIN')) {
+        return false;
+    }
+    
+    echo "⚠️  {$message}.\n";
+    echo "Are you sure? (yes/no): ";
+    $handle = fopen("php://stdin", "r");
+    $line = fgets($handle);
+    fclose($handle);
+    return trim(strtolower($line)) === 'yes';
 }
 
 function runMigrations()
@@ -372,7 +384,7 @@ function showMigrationStatus()
 
 function showHelp()
 {
-    echo "Usage: php migrate.php [command]\n\n";
+    echo "Usage: php migrate.php [command] [options]\n\n";
     echo "Commands:\n";
     echo "  migrate       Run pending migrations (skips already run migrations)\n";
     echo "  fresh         Drop all tables and re-run all migrations\n";
@@ -381,8 +393,11 @@ function showHelp()
     echo "  rollback      Rollback last migration batch\n";
     echo "  status        Show migration status (run & pending)\n";
     echo "  help          Show this help message\n\n";
+    echo "Options:\n";
+    echo "  --force, -f   Skip confirmation prompts (for automated scripts)\n\n";
     echo "Examples:\n";
-    echo "  php migrate.php migrate       # Run only new migrations\n";
-    echo "  php migrate.php status        # Check which migrations ran\n";
-    echo "  php migrate.php fresh-seed    # Reset everything\n\n";
+    echo "  php migrate.php migrate            # Run only new migrations\n";
+    echo "  php migrate.php status             # Check which migrations ran\n";
+    echo "  php migrate.php fresh-seed         # Reset everything (with confirmation)\n";
+    echo "  php migrate.php fresh-seed --force # Reset everything (no confirmation)\n\n";
 }
