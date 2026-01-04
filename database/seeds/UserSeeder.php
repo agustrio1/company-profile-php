@@ -9,7 +9,7 @@ use Dotenv\Dotenv;
 $dotenv = Dotenv::createImmutable(dirname(__DIR__, 2));
 $dotenv->load();
 
-echo "Seeding users...\n";
+echo "Seeding users and demo data...\n";
 
 try {
     // Get fresh PDO connection
@@ -18,7 +18,7 @@ try {
     // Start new transaction
     $pdo->beginTransaction();
 
-    // Find Super Admin role
+    // Get Super Admin Role
     $stmt = $pdo->prepare("SELECT id FROM roles WHERE name = :name LIMIT 1");
     $stmt->execute(['name' => 'Super Admin']);
     $superAdminRole = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -29,89 +29,90 @@ try {
     
     echo "✓ Super Admin role found: {$superAdminRole['id']}\n\n";
 
-    // Create default users
-    echo "→ Creating users...\n";
-    
-    $users = [
-        [
-            'id' => strtolower(\Ulid\Ulid::generate()),
-            'name' => 'Super Admin',
-            'email' => 'superadmin@nexarostudio.com',
-            'password' => password_hash('password123', PASSWORD_BCRYPT),
-            'role_id' => $superAdminRole['id']
-        ],
-        [
-            'id' => strtolower(\Ulid\Ulid::generate()),
-            'name' => 'Admin User',
-            'email' => 'admin@nexarostudio.com',
-            'password' => password_hash('password123', PASSWORD_BCRYPT),
-            'role_id' => null // Will be set to Admin role
-        ],
-        [
-            'id' => strtolower(\Ulid\Ulid::generate()),
-            'name' => 'Editor User',
-            'email' => 'editor@nexarostudio.com',
-            'password' => password_hash('password123', PASSWORD_BCRYPT),
-            'role_id' => null // Will be set to Editor role
-        ]
-    ];
+    // Create Super Admin User
+    echo "→ Creating super admin user...\n";
+    $userId = strtolower(\Ulid\Ulid::generate());
 
-    // Get Admin and Editor role IDs
-    $stmt = $pdo->prepare("SELECT id FROM roles WHERE name = :name LIMIT 1");
-    
-    $stmt->execute(['name' => 'Admin']);
-    $adminRole = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($adminRole) {
-        $users[1]['role_id'] = $adminRole['id'];
-    }
-    
-    $stmt->execute(['name' => 'Editor']);
-    $editorRole = $stmt->fetch(PDO::FETCH_ASSOC);
-    if ($editorRole) {
-        $users[2]['role_id'] = $editorRole['id'];
-    }
-
-    // Insert users
     $userStmt = $pdo->prepare(
         "INSERT INTO users (id, name, email, password, created_at, updated_at) 
          VALUES (:id, :name, :email, :password, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
     );
 
-    // Assign roles to users
+    $userStmt->execute([
+        'id' => $userId,
+        'name' => 'Super Admin',
+        'email' => 'admin@gmail.com',
+        'password' => password_hash('password123', PASSWORD_BCRYPT)
+    ]);
+    
+    echo "  ✓ User created: admin@gmail.com\n";
+
+    // Assign Super Admin Role to User
     $roleUserStmt = $pdo->prepare(
         "INSERT INTO role_user (user_id, role_id) VALUES (:user_id, :role_id)"
     );
+    
+    $roleUserStmt->execute([
+        'user_id' => $userId,
+        'role_id' => $superAdminRole['id']
+    ]);
+    
+    echo "  ✓ Super Admin role assigned\n";
 
-    foreach ($users as $user) {
-        // Insert user
-        $userStmt->execute([
-            'id' => $user['id'],
-            'name' => $user['name'],
-            'email' => $user['email'],
-            'password' => $user['password']
-        ]);
-        
-        echo "  ✓ User created: {$user['name']} ({$user['email']})\n";
+    // Create Demo Company Profile
+    echo "\n→ Creating demo company profile...\n";
+    $companyId = strtolower(\Ulid\Ulid::generate());
+    
+    $companyStmt = $pdo->prepare(
+        "INSERT INTO company (id, name, slug, description, vision, mission, founded_year, address, phone, email, website, created_at, updated_at) 
+         VALUES (:id, :name, :slug, :description, :vision, :mission, :founded_year, :address, :phone, :email, :website, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"
+    );
 
-        // Assign role if exists
-        if ($user['role_id']) {
-            $roleUserStmt->execute([
-                'user_id' => $user['id'],
-                'role_id' => $user['role_id']
-            ]);
-            echo "    → Role assigned\n";
-        }
-    }
+    $companyStmt->execute([
+        'id' => $companyId,
+        'name' => 'Your Company Name',
+        'slug' => 'your-company-name',
+        'description' => 'Your company description here',
+        'vision' => 'Your company vision here',
+        'mission' => 'Your company mission here',
+        'founded_year' => 2024,
+        'address' => 'Your company address',
+        'phone' => '+1234567890',
+        'email' => 'info@example.com',
+        'website' => 'https://example.com'
+    ]);
+    
+    echo "  ✓ Demo company profile created\n";
+
+    // Create Demo Blog Category
+    echo "\n→ Creating demo blog category...\n";
+    $categoryId = strtolower(\Ulid\Ulid::generate());
+    
+    $categoryStmt = $pdo->prepare(
+        "INSERT INTO blog_categories (id, name, slug, description) 
+         VALUES (:id, :name, :slug, :description)"
+    );
+
+    $categoryStmt->execute([
+        'id' => $categoryId,
+        'name' => 'General',
+        'slug' => 'general',
+        'description' => 'General blog posts'
+    ]);
+    
+    echo "  ✓ Demo blog category created\n";
 
     // Commit transaction
     $pdo->commit();
     
-    echo "\n✅ Users seeded successfully!\n";
-    echo "\nDefault Credentials:\n";
-    echo "-------------------\n";
-    echo "Super Admin: superadmin@nexarostudio.com / password123\n";
-    echo "Admin:       admin@nexarostudio.com / password123\n";
-    echo "Editor:      editor@nexarostudio.com / password123\n";
+    echo "\n✅ Users and demo data seeded successfully!\n\n";
+    echo "===========================================\n";
+    echo "  LOGIN CREDENTIALS\n";
+    echo "===========================================\n";
+    echo "Email:    admin@gmail.com\n";
+    echo "Password: password123\n";
+    echo "===========================================\n\n";
+    echo "⚠️  Please change the password after first login!\n\n";
 
 } catch (Exception $e) {
     if (isset($pdo) && $pdo->inTransaction()) {
